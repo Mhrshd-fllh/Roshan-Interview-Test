@@ -29,7 +29,7 @@ def retrieve_top_k(query: str, k: int = 3) -> List[RetrievalResult]:
     if not docs:
         return []
     
-    corpus = [d.body for d in docs]
+    corpus = [d.content for d in docs]
 
     vectorizer = TfidfVectorizer(stop_words=None, max_features=5000, ngram_range=(1, 2))
 
