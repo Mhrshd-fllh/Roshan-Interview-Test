@@ -16,7 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-
+from apps.qa.api import retrieve_view
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path("api/retrieve/", retrieve_view)
 ]
