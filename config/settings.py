@@ -26,6 +26,12 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("The DJANGO_SECRET_KEY environment variable is not set.")
 
+RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "3"))
+MAX_CONTEXT_CHARS = int(os.getenv("MAX_CONTEXT_CHARS", "1500"))
+
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "stub")
+LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "google/flan-t5-base")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
