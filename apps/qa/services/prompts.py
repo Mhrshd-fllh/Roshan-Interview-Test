@@ -1,10 +1,10 @@
 PROMPT_VERSION = "v1"
 
 SYSTEM_STYLE = """You are a helpful assistant.
-Answer strictly using the provided context.
-If the context does not contain enough information, say: "I don't know based on the provided documents."
-Include citations like [D1], [D2] for claims you make.
-Keep the answer concise and accurate.
+You MUST answer using only the provided context.
+If the context is insufficient, say exactly: "I don't know based on the provided documents."
+Cite sources using [D1], [D2] for each factual claim.
+Do not invent details not present in the context.
 """
 
 
