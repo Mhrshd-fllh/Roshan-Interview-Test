@@ -31,6 +31,9 @@ MAX_CONTEXT_CHARS = int(os.getenv("MAX_CONTEXT_CHARS", "1500"))
 
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "stub")
 LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "google/flan-t5-base")
+LLM_MAX_NEW_TOKENS = int(os.getenv("LLM_MAX_NEW_TOKENS", "256"))
+LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.2"))
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
