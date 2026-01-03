@@ -12,6 +12,7 @@ from apps.qa.services.llm import get_llm, LLMError
 from apps.qa.services.prompts import build_prompt, PROMPT_VERSION
 
 
+
 def generate_answer_for_question(question_text: str, top_k: int, max_context_chars: int) -> Answer:
     """
     End-to-end pipeline:
@@ -24,6 +25,12 @@ def generate_answer_for_question(question_text: str, top_k: int, max_context_cha
     """
 
     started = time.perf_counter()
+
+    existing_q = (Question.objects.filter(text=question_text).select_related("answer").first())
+    if existing_q and hasattr(existing_q, "answer"):
+        a = existing_q.answer
+        if a.status == Answer.Status.SUCCESS:
+            return a
 
     with transaction.atomic():
         q = Question.objects.create(text=question_text)
