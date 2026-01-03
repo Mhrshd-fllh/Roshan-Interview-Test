@@ -74,6 +74,14 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+# Cache
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "roshan-cache",
+    }
+}
+
 
 TEMPLATES = [
     {
