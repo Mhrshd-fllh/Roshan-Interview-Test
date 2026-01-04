@@ -35,9 +35,18 @@ class AskResponseSerializer(serializers.Serializer):
     answer_id = serializers.IntegerField(help_text="ID of the generated answer")
     status = serializers.CharField(help_text="Status of the answer generation")
     answer = serializers.CharField(allow_blank=True, help_text="Generated answer text")
-
     sources = AskSourceSerializer(many=True, help_text="Retrieved sources used for answering")
-
-    model_name = serializers.CharField(allow_blank=True, help_text="Name of the LLM model used")
+    model_name = serializers.CharField(allow_blank=True, help_text="Name of the LLM model used")    
     prompt_version = serializers.CharField(allow_blank=True, help_text="Version of the prompt template used")
     latency_ms = serializers.IntegerField(help_text="Latency in milliseconds for answer generation")
+class RetrievalResultSerializer(serializers.Serializer):
+    rank = serializers.IntegerField(help_text="Rank of the retrieved document (1 is best)")
+    document_id = serializers.IntegerField(help_text="ID of the retrieved document")
+    title = serializers.CharField(help_text="Title of the retrieved document")
+    score = serializers.FloatField(help_text="Similarity score between question and document")
+
+
+class RetrievalResponseSerializer(serializers.Serializer):
+    question = serializers.CharField(help_text="The user question")
+    k = serializers.IntegerField(help_text="Number of retrieved documents")
+    results = RetrievalResultSerializer(many=True, help_text="Ranked retrieval results")
