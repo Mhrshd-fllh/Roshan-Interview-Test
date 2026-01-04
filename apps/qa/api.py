@@ -8,8 +8,18 @@ from django.conf import settings
 from apps.documents.services.retrieval import retrieve_top_k
 from .serializers import RetrievalRequestSerializer
 
-from apps.qa.serializers import AskRequestSerializer, AskResponseSerializer
+from apps.qa.serializers import (
+    RetrievalRequestSerializer,
+    RetrievalResponseSerializer,
+    AskRequestSerializer,
+    AskResponseSerializer,
+)
 from apps.qa.services.answer_generation import generate_answer_for_question
+
+
+from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 
 
 class RetrieveAPIView(GenericAPIView):
@@ -17,9 +27,10 @@ class RetrieveAPIView(GenericAPIView):
     serializer_class = RetrievalRequestSerializer
 
     @extend_schema(
-        request = RetrievalRequestSerializer,
-        responses = {200: dict},
-        description = 'Retrieve top-k relevant documents for a given question',
+        tags=["QA"],
+        request=RetrievalRequestSerializer,
+        responses={200: RetrievalResponseSerializer},
+        description="Retrieve top-k relevant documents for a given question",
     )
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
@@ -50,6 +61,7 @@ class AskAPIView(GenericAPIView):
     serializer_class = AskRequestSerializer
 
     @extend_schema(
+        tags=["QA"],
         request=AskRequestSerializer,
         responses={200: AskResponseSerializer},
         description="Ask a question. The system retrieves relevant documents and generates an answer using an LLM.",
@@ -64,8 +76,10 @@ class AskAPIView(GenericAPIView):
         top_k = int(getattr(settings, "RETRIEVAL_TOP_K", k) or k)
         max_chars = int(getattr(settings, "MAX_CONTEXT_CHARS", 1500))
 
+        # Retrieve (cached) for precise citations
         results = retrieve_top_k(question, k=top_k)
 
+        # Generate answer
         ans = generate_answer_for_question(question, top_k=top_k, max_context_chars=max_chars)
 
         sources = [
@@ -78,6 +92,7 @@ class AskAPIView(GenericAPIView):
             for idx, r in enumerate(results, start=1)
         ]
 
+        # Optional: keep DB relation aligned (اگر M2M داری)
         try:
             ans.source_documents.set([r.document.id for r in results])
         except Exception:
@@ -88,7 +103,7 @@ class AskAPIView(GenericAPIView):
             "answer_id": ans.id,
             "status": ans.status,
             "answer": ans.text,
-            "sources": sources,   
+            "sources": sources,
             "model_name": ans.model_name,
             "prompt_version": ans.prompt_version,
             "latency_ms": ans.latency_ms,
