@@ -1,69 +1,57 @@
 from __future__ import annotations
 
 import time
-from typing import Optional
-
 from django.db import transaction
 
-from apps.documents.services.retrieval import retrieve_top_k
 from apps.qa.models import Answer, Question
-from apps.qa.services.context import pack_context
-from apps.qa.services.llm import get_llm, LLMError
-from apps.qa.services.prompts import build_prompt, PROMPT_VERSION
-
+from apps.qa.langchain.llm import get_langchain_llm
+from apps.qa.langchain.chain import build_rag_chain
 
 
 def generate_answer_for_question(question_text: str, top_k: int, max_context_chars: int) -> Answer:
-    """
-    End-to-end pipeline:
-      1) Create Question
-      2) Retrieve top-k documents
-      3) Pack context (bounded)
-      4) Build prompt
-      5) Call LLM
-      6) Persist Answer + sources + metadata
-    """
-
     started = time.perf_counter()
-
-    existing_q = (Question.objects.filter(text=question_text).select_related("answer").first())
-    if existing_q and hasattr(existing_q, "answer"):
-        a = existing_q.answer
-        if a.status == Answer.Status.SUCCESS:
-            return a
 
     with transaction.atomic():
         q = Question.objects.create(text=question_text)
-        a = Answer.objects.create(question=q, status=Answer.Status.PENDING, retrieval_top_k=top_k, prompt_version = PROMPT_VERSION)
-
-    results = retrieve_top_k(question_text, k=top_k)
-    packed = pack_context(results, max_chars=max_context_chars)
+        a = Answer.objects.create(
+            question=q,
+            status=Answer.Status.PENDING,
+            retrieval_top_k=top_k,
+            prompt_version="langchain-v1",
+        )
 
     try:
-        llm = get_llm()
-        prompt = build_prompt(context=packed.text, question=question_text)
-        text = llm.generate(prompt=prompt).strip()
+        llm = get_langchain_llm()
+        chain = build_rag_chain(llm, k=top_k)
+
+        # invoke expects dict with "input"
+        out = chain.invoke(question_text)
+        answer_text = (out.get("answer") or "").strip()
+        ctx_docs = out.get("context") or []
+        used_ids = []
+        for d in ctx_docs:
+            doc_id = d.metadata.get("document_id")
+            if doc_id:
+                used_ids.append(int(doc_id))
 
         latency_ms = int((time.perf_counter() - started) * 1000)
 
         with transaction.atomic():
-            a.text = text
+            a.text = answer_text
             a.status = Answer.Status.SUCCESS
-            a.model_name = getattr(llm, "name", "unknown")
-            a.context_chars = packed.context_chars
+            a.model_name = getattr(llm, "model", "") or getattr(llm, "_llm_type", "") or "langchain"
+            a.context_chars = min(max_context_chars, len("".join([d.page_content for d in ctx_docs])))
             a.latency_ms = latency_ms
             a.error_message = ""
-            a.save(update_fields=[
-                "text", "status", "model_name", "context_chars", "latency_ms", "error_message"
-            ])
-            if packed.used_doc_ids:
-                a.source_documents.set(packed.used_doc_ids)
+            a.save(update_fields=["text", "status", "model_name", "context_chars", "latency_ms", "error_message"])
+
+            if used_ids:
+                a.source_documents.set(used_ids)
 
         return a
-    
+
     except Exception as e:
         latency_ms = int((time.perf_counter() - started) * 1000)
-
         with transaction.atomic():
             a.status = Answer.Status.FAILED
             a.error_message = str(e)
